@@ -1,9 +1,7 @@
 /**
  * Tests for App component
  *
- * This test file demonstrates how to test a ZMK web application using
- * the react-zmk-studio test helpers. It serves as a reference implementation
- * for users of this template.
+ * This test file demonstrates how to test the ZMK BLE Management application.
  */
 
 import { render, screen, waitFor } from "@testing-library/react";
@@ -26,23 +24,29 @@ describe("App Component", () => {
     it("should render the application header", () => {
       render(<App />);
 
-      // Check for the main title
-      expect(screen.getByText(/ZMK Module Template/i)).toBeInTheDocument();
-      expect(screen.getByText(/Custom Studio RPC Demo/i)).toBeInTheDocument();
+      expect(
+        screen.getByRole("heading", {
+          name: /📡 ZMK BLE Management/i,
+          level: 1,
+        })
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(/Manage Bluetooth connections/i)
+      ).toBeInTheDocument();
     });
 
     it("should render connection button when disconnected", () => {
       render(<App />);
 
-      // Check for connection button in disconnected state
-      expect(screen.getByText(/Connect Serial/i)).toBeInTheDocument();
+      expect(screen.getByText(/Connect via Serial/i)).toBeInTheDocument();
     });
 
     it("should render footer", () => {
       render(<App />);
 
-      // Check for footer text
-      expect(screen.getByText(/Template Module/i)).toBeInTheDocument();
+      expect(
+        screen.getByText(/Easily manage your keyboard's Bluetooth connections/i)
+      ).toBeInTheDocument();
     });
   });
 
@@ -57,37 +61,30 @@ describe("App Component", () => {
       // Set up successful connection mock
       mocks.mockSuccessfulConnection({
         deviceName: "Test Keyboard",
-        subsystems: ["zmk__template"],
+        subsystems: ["zmk__ble_management"],
       });
 
-      // Mock the serial connect function to return our mock transport
+      // Mock the serial connect function
       const { connect: serial_connect } =
         await import("@zmkfirmware/zmk-studio-ts-client/transport/serial");
       (serial_connect as jest.Mock).mockResolvedValue(mocks.mockTransport);
 
-      // Render the app
       render(<App />);
 
-      // Verify initial disconnected state
-      expect(screen.getByText(/Connect Serial/i)).toBeInTheDocument();
+      expect(screen.getByText(/Connect via Serial/i)).toBeInTheDocument();
 
-      // Click the connect button
       const user = userEvent.setup();
-      const connectButton = screen.getByText(/Connect Serial/i);
+      const connectButton = screen.getByText(/Connect via Serial/i);
       await user.click(connectButton);
 
-      // Wait for connection to complete and verify connected state
       await waitFor(() => {
         expect(
           screen.getByText(/Connected to: Test Keyboard/i)
         ).toBeInTheDocument();
       });
 
-      // Verify disconnect button is now available
       expect(screen.getByText(/Disconnect/i)).toBeInTheDocument();
-
-      // Verify RPC test section is visible
-      expect(screen.getByText(/RPC Test/i)).toBeInTheDocument();
+      expect(screen.getByText(/Bluetooth Profiles/i)).toBeInTheDocument();
     });
   });
 });
