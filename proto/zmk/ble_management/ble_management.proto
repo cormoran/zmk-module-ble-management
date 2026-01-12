@@ -8,7 +8,7 @@ message ProfileInfo {
     string name = 2;          // Custom name for the profile
     string address = 3;       // BLE address (MAC address)
     bool is_connected = 4;    // Whether currently connected
-    bool is_open = 5;         // Whether profile slot is in use
+    bool is_open = 5;         // Whether profile slot is not in use
     bool is_active = 6;       // Whether this is the active profile
 }
 

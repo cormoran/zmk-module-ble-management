@@ -244,7 +244,7 @@ export function ProfileManager() {
             key={profile.index}
             className={`profile-item ${profile.isActive ? "active" : ""} ${
               profile.isConnected ? "connected" : ""
-            } ${!profile.isOpen ? "empty" : ""}`}
+            } ${profile.isOpen ? "empty" : ""}`}
           >
             <div className="profile-header">
               <h3>
@@ -256,10 +256,10 @@ export function ProfileManager() {
               {profile.isConnected && !profile.isActive && (
                 <span className="badge connected">Connected</span>
               )}
-              {!profile.isOpen && <span className="badge empty">Empty</span>}
+              {profile.isOpen && <span className="badge empty">Empty</span>}
             </div>
 
-            {profile.isOpen ? (
+            {!profile.isOpen ? (
               <>
                 <div className="profile-info">
                   {editingIndex === profile.index ? (
