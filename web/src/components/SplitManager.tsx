@@ -26,48 +26,53 @@ export function SplitManager() {
   const subsystem = zmkApp?.findSubsystem(SUBSYSTEM_IDENTIFIER);
 
   // Load split info on mount
-  const loadSplitInfo = useCallback(async () => {
-    if (!zmkApp?.state.connection || !subsystem) return;
+  const loadSplitInfo = useCallback(
+    async () => {
+      if (!zmkApp?.state.connection || !subsystem) return;
 
-    setIsLoading(true);
-    setError(null);
+      setIsLoading(true);
+      setError(null);
 
-    try {
-      const service = new ZMKCustomSubsystem(
-        zmkApp.state.connection,
-        subsystem.index
-      );
+      try {
+        const service = new ZMKCustomSubsystem(
+          zmkApp.state.connection,
+          subsystem.index
+        );
 
-      const request = Request.create({
-        getSplitInfo: {},
-      });
+        const request = Request.create({
+          getSplitInfo: {},
+        });
 
-      const payload = Request.encode(request).finish();
-      const responsePayload = await service.callRPC(payload);
+        const payload = Request.encode(request).finish();
+        const responsePayload = await service.callRPC(payload);
 
-      if (responsePayload) {
-        const resp = Response.decode(responsePayload);
-        if (resp.getSplitInfo?.info) {
-          setSplitInfo(resp.getSplitInfo.info);
-        } else if (resp.error) {
-          setError(resp.error.message);
+        if (responsePayload) {
+          const resp = Response.decode(responsePayload);
+          if (resp.getSplitInfo?.info) {
+            setSplitInfo(resp.getSplitInfo.info);
+          } else if (resp.error) {
+            setError(resp.error.message);
+          }
         }
+      } catch (err) {
+        console.error("Failed to load split info:", err);
+        setError(
+          `Failed to load split info: ${err instanceof Error ? err.message : "Unknown error"}`
+        );
+      } finally {
+        setIsLoading(false);
       }
-    } catch (err) {
-      console.error("Failed to load split info:", err);
-      setError(
-        `Failed to load split info: ${err instanceof Error ? err.message : "Unknown error"}`
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  }, [zmkApp, subsystem]);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [zmkApp?.state.connection, subsystem?.index]
+  );
 
   useEffect(() => {
     if (subsystem && zmkApp?.state.connection) {
       loadSplitInfo();
     }
-  }, [subsystem, zmkApp?.state.connection, loadSplitInfo]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [subsystem?.index, zmkApp?.state.connection, loadSplitInfo]);
 
   const forgetSplitBond = async () => {
     if (!zmkApp?.state.connection || !subsystem) return;
@@ -157,7 +162,7 @@ export function SplitManager() {
               </div>
             )}
 
-            {splitInfo.isPeripheral && (
+            {!splitInfo.isCentral && (
               <div className="info-item">
                 <strong>Central Bonded:</strong>{" "}
                 {splitInfo.centralBonded ? (

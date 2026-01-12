@@ -416,21 +416,18 @@ static int handle_get_split_info_request(const zmk_ble_management_GetSplitInfoRe
     info->is_split = true;
 #if IS_ENABLED(CONFIG_ZMK_SPLIT_ROLE_CENTRAL)
     info->is_central = true;
-    info->is_peripheral = false;
     // For central, check if peripheral is connected
     // Note: ZMK doesn't expose a direct API for this, so we'll set it to false for now
     info->peripheral_connected = false;
     info->central_bonded = false;
 #elif IS_ENABLED(CONFIG_ZMK_SPLIT_ROLE_PERIPHERAL)
     info->is_central = false;
-    info->is_peripheral = true;
     info->peripheral_connected = false;
     info->central_bonded = zmk_split_bt_peripheral_is_bonded();
 #endif
 #else
     info->is_split = false;
     info->is_central = false;
-    info->is_peripheral = false;
     info->peripheral_connected = false;
     info->central_bonded = false;
 #endif

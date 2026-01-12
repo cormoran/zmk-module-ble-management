@@ -52,9 +52,8 @@ message UnpairProfileResponse {
 message SplitInfo {
     bool is_split = 1;
     bool is_central = 2;
-    bool is_peripheral = 3;
-    bool peripheral_connected = 4;  // For central: is peripheral connected
-    bool central_bonded = 5;        // For peripheral: is central bonded
+    bool peripheral_connected = 3;  // For central: is peripheral connected
+    bool central_bonded = 4;        // For peripheral: is central bonded
 }
 
 message GetSplitInfoRequest {}
