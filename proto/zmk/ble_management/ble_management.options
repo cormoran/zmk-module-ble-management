@@ -1,0 +1,7 @@
+# Nanopb options file for ble_management.proto
+# This defines max sizes for string fields
+
+zmk.ble_management.ProfileInfo.name       max_size:32
+zmk.ble_management.ProfileInfo.address    max_size:18
+zmk.ble_management.SetProfileNameRequest.name  max_size:32
+zmk.ble_management.ErrorResponse.message  max_size:64
