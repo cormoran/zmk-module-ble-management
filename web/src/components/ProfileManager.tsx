@@ -332,7 +332,20 @@ export function ProfileManager() {
                 </div>
               </>
             ) : (
-              <p className="text-muted">No device paired in this slot.</p>
+              <>
+                <p className="text-muted">No device paired in this slot.</p>
+                <div className="profile-actions">
+                  {!profile.isActive && (
+                    <button
+                      className="btn btn-primary"
+                      onClick={() => switchProfile(profile.index)}
+                      disabled={isLoading}
+                    >
+                      Switch to this profile
+                    </button>
+                  )}
+                </div>
+              </>
             )}
           </div>
         ))}
