@@ -1,6 +1,5 @@
 config ZMK_BLE_MANAGEMENT
     bool "Enable BLE management feature"
-    depends on ZMK_BLE
 
 if ZMK_BLE_MANAGEMENT
 

@@ -10,6 +10,7 @@
  * - Manage split keyboard connections
  */
 
+#include <zephyr/init.h>
 #include <pb_decode.h>
 #include <pb_encode.h>
 #include <zmk/studio/custom.h>
@@ -37,12 +38,18 @@ LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 
 // Structure to store profile name tied to BLE address
 struct profile_name_entry {
+#if IS_ENABLED(CONFIG_ZMK_BLE)
     bt_addr_le_t addr;
+#endif
     char name[32];
 };
 
 // Profile names cache (in memory)
+#if IS_ENABLED(CONFIG_ZMK_BLE)
 static struct profile_name_entry profile_names[ZMK_BLE_PROFILE_COUNT];
+#else
+static struct profile_name_entry profile_names[1]; // Dummy array when BLE is disabled
+#endif
 
 /**
  * Metadata for the custom subsystem.
@@ -78,6 +85,7 @@ static int handle_forget_split_bond_request(const zmk_ble_management_ForgetSplit
  * Get profile name from cache based on BLE address
  */
 static const char *get_profile_name(const bt_addr_le_t *addr) {
+#if IS_ENABLED(CONFIG_ZMK_BLE)
     if (!addr) {
         return "";
     }
@@ -87,6 +95,7 @@ static const char *get_profile_name(const bt_addr_le_t *addr) {
             return profile_names[i].name;
         }
     }
+#endif
     return "";
 }
 
@@ -94,6 +103,7 @@ static const char *get_profile_name(const bt_addr_le_t *addr) {
  * Save profile name to settings and cache
  */
 static int save_profile_name(const bt_addr_le_t *addr, const char *name) {
+#if IS_ENABLED(CONFIG_ZMK_BLE)
     if (!addr || !name) {
         return -EINVAL;
     }
@@ -127,6 +137,9 @@ static int save_profile_name(const bt_addr_le_t *addr, const char *name) {
     snprintf(setting_name, sizeof(setting_name), SETTINGS_NAME_PREFIX "%s", addr_str);
 
     return settings_save_one(setting_name, name, strlen(name) + 1);
+#else
+    return -ENOTSUP;
+#endif
 }
 
 /**
@@ -134,6 +147,7 @@ static int save_profile_name(const bt_addr_le_t *addr, const char *name) {
  */
 static int profile_names_settings_set(const char *name, size_t len, settings_read_cb read_cb,
                                      void *cb_arg) {
+#if IS_ENABLED(CONFIG_ZMK_BLE)
     const char *next;
     int rc;
 
@@ -174,6 +188,7 @@ static int profile_names_settings_set(const char *name, size_t len, settings_rea
             LOG_DBG("Loaded profile name for %s: %s", addr_str, profile_names[slot].name);
         }
     }
+#endif
 
     return 0;
 }
@@ -246,6 +261,8 @@ static int handle_get_profiles_request(const zmk_ble_management_GetProfilesReque
     LOG_DBG("GetProfilesRequest");
 
     zmk_ble_management_GetProfilesResponse result = zmk_ble_management_GetProfilesResponse_init_zero;
+
+#if IS_ENABLED(CONFIG_ZMK_BLE)
     result.max_profiles = ZMK_BLE_PROFILE_COUNT;
 
     int active = zmk_ble_active_profile_index();
@@ -275,6 +292,11 @@ static int handle_get_profiles_request(const zmk_ble_management_GetProfilesReque
     }
 
     result.profiles_count = ZMK_BLE_PROFILE_COUNT;
+#else
+    result.max_profiles = 0;
+    result.profiles_count = 0;
+#endif
+
     resp->which_response_type = zmk_ble_management_Response_get_profiles_tag;
     resp->response_type.get_profiles = result;
     return 0;
@@ -290,6 +312,7 @@ static int handle_set_profile_name_request(const zmk_ble_management_SetProfileNa
     zmk_ble_management_SetProfileNameResponse result =
         zmk_ble_management_SetProfileNameResponse_init_zero;
 
+#if IS_ENABLED(CONFIG_ZMK_BLE)
     if (req->index >= ZMK_BLE_PROFILE_COUNT) {
         LOG_WRN("Invalid profile index: %d", req->index);
         result.success = false;
@@ -303,6 +326,9 @@ static int handle_set_profile_name_request(const zmk_ble_management_SetProfileNa
             result.success = false;
         }
     }
+#else
+    result.success = false;
+#endif
 
     resp->which_response_type = zmk_ble_management_Response_set_profile_name_tag;
     resp->response_type.set_profile_name = result;
@@ -319,6 +345,7 @@ static int handle_switch_profile_request(const zmk_ble_management_SwitchProfileR
     zmk_ble_management_SwitchProfileResponse result =
         zmk_ble_management_SwitchProfileResponse_init_zero;
 
+#if IS_ENABLED(CONFIG_ZMK_BLE)
     if (req->index >= ZMK_BLE_PROFILE_COUNT) {
         LOG_WRN("Invalid profile index: %d", req->index);
         result.success = false;
@@ -326,6 +353,9 @@ static int handle_switch_profile_request(const zmk_ble_management_SwitchProfileR
         int rc = zmk_ble_prof_select(req->index);
         result.success = (rc == 0);
     }
+#else
+    result.success = false;
+#endif
 
     resp->which_response_type = zmk_ble_management_Response_switch_profile_tag;
     resp->response_type.switch_profile = result;
@@ -342,6 +372,7 @@ static int handle_unpair_profile_request(const zmk_ble_management_UnpairProfileR
     zmk_ble_management_UnpairProfileResponse result =
         zmk_ble_management_UnpairProfileResponse_init_zero;
 
+#if IS_ENABLED(CONFIG_ZMK_BLE)
     if (req->index >= ZMK_BLE_PROFILE_COUNT) {
         LOG_WRN("Invalid profile index: %d", req->index);
         result.success = false;
@@ -361,6 +392,9 @@ static int handle_unpair_profile_request(const zmk_ble_management_UnpairProfileR
         int rc = zmk_ble_prof_disconnect(req->index);
         result.success = (rc == 0);
     }
+#else
+    result.success = false;
+#endif
 
     resp->which_response_type = zmk_ble_management_Response_unpair_profile_tag;
     resp->response_type.unpair_profile = result;
@@ -434,11 +468,13 @@ static int handle_forget_split_bond_request(const zmk_ble_management_ForgetSplit
  * Initialize profile names on boot
  */
 static int profile_names_init(void) {
+#if IS_ENABLED(CONFIG_ZMK_BLE)
     // Initialize all entries to empty
     for (int i = 0; i < ZMK_BLE_PROFILE_COUNT; i++) {
         bt_addr_le_copy(&profile_names[i].addr, BT_ADDR_LE_NONE);
         profile_names[i].name[0] = '\0';
     }
+#endif
 
     LOG_DBG("Profile names initialized");
     return 0;
