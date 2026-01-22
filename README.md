@@ -1,229 +1,213 @@
-# ZMK Module Template with Custom Web UI
+# ZMK BLE Management Module
 
-This repository contains a template for a ZMK module with Web UI by using
-**unofficial** custom studio rpc protocol.
+This ZMK module provides a web-based user interface for managing Bluetooth Low Energy (BLE) connections on your ZMK keyboard. It makes it easy to view paired devices, switch between profiles, customize names, and manage split keyboard connections.
 
-Basic usage is the same to official template. Read through the
-[ZMK Module Creation](https://zmk.dev/docs/development/module-creation) page for
-details on how to configure this template.
+## Features
 
-### Supporting custom studio RPC protocol
+- **📱 View BLE Profiles**: See all paired devices with connection status
+- **✏️ Custom Names**: Assign memorable names to your paired devices (saved persistently)
+- **🔄 Quick Switching**: Easily switch between paired devices
+- **🗑️ Unpair Devices**: Remove unwanted pairings
+- **⌨️ Split Keyboard Support**: Manage connections between split keyboard halves
+- **💾 Persistent Storage**: Custom device names are saved and tied to BLE addresses
 
-This template contains sample implementation. Please edit and rename below files
-to implement your protocol.
+## Screenshots
 
-- proto `proto/zmk/template/custom.proto` and `custom.options`
-- handler `src/studio/custom_handler.c`
-- flags in `Kconfig`
-- test `./tests/studio`
+[Screenshots will be added here]
 
-### Implementing Web UI for the custom protocol
+## Setup
 
-`./web` contains boilerplate based on
-[vite template `react-ts`](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts)
-(`npm create vite@latest web -- --template react-ts`) and react hook library
-[@cormoran/react-zmk-studio](https://github.com/cormoran/react-zmk-studio).
+You can use this ZMK module with the following setup:
 
-Please refer
-[react-zmk-studio README](https://github.com/cormoran/react-zmk-studio/blob/main/README.md).
+### 1. Add dependency to your `config/west.yml`
 
-## Setup (Please edit!)
+```yaml
+# config/west.yml
+manifest:
+  remotes:
+    - name: cormoran
+      url-base: https://github.com/cormoran
+  projects:
+    - name: zmk-module-ble-management
+      remote: cormoran
+      revision: main # or latest commit hash
+    # Required: Custom ZMK fork with studio protocol support
+    - name: zmk
+      remote: cormoran
+      revision: v0.3+custom-studio-protocol
+      import:
+        file: app/west.yml
+```
 
-You can use this zmk-module with below setup.
+### 2. Enable the module in your `config/<shield>.conf`
 
-1. Add dependency to your `config/west.yml`.
+```conf
+# config/<shield>.conf
+# Enable BLE Management Module
+CONFIG_ZMK_BLE_MANAGEMENT=y
 
-   ```yaml:config/west.yml
-   # Please update with your account and repository name after create repository from template
-   manifest:
-   remotes:
-       ...
-       - name: cormoran
-       url-base: https://github.com/cormoran
-   projects:
-       ...
-       - name: zmk-module-template-with-custom-studio-rpc
-       remote: cormoran
-       revision: main # or latest commit hash
-       # import: true # if this module has other dependencies
-       ...
-       # Below setting required to use unofficial studio custom PRC feature
-       - name: zmk
-       remote: cormoran
-       revision: v0.3+custom-studio-protocol
-       import:
-           file: app/west.yml
-   ```
+# Enable Studio custom RPC features
+CONFIG_ZMK_STUDIO=y
+CONFIG_ZMK_BLE_MANAGEMENT_STUDIO_RPC=y
+```
 
-1. Enable flag in your `config/<shield>.conf`
+### 3. Use the Web UI
 
-   ```conf:<shield>.conf
-   # Enable standalone features
-   CONFIG_ZMK_TEMPLATE_FEATURE=y
+1. Build and flash your firmware with the module enabled
+2. Visit the web UI at: `https://cormoran.github.io/zmk-module-ble-management/`
+3. Connect your keyboard via Serial (USB)
+4. Manage your BLE profiles!
 
-   # Optionally enable studio custom RPC features
-   CONFIG_ZMK_STUDIO=y
-   CONFIG_ZMK_TEMPLATE_FEATURE_STUDIO_RPC=y
-   ```
+## Usage Guide
 
-1. Update your `<keyboard>.keymap` like .....
+### Managing BLE Profiles
 
-   ```
-   / {
-       ...
-   }
-   ```
+1. **View Profiles**: After connecting, you'll see all your BLE profile slots (typically 5)
+2. **Edit Names**: Click the pencil icon (✏️) next to any profile to give it a custom name
+3. **Switch Profiles**: Click "Switch to this profile" to change your active connection
+4. **Unpair**: Click the "🗑️ Unpair" button to remove a pairing
+
+### Split Keyboard Management
+
+If you have a split keyboard:
+
+1. The UI will automatically detect split keyboard configuration
+2. View the connection status between halves
+3. Reset split connections if experiencing pairing issues
+
+### Tips
+
+- **Custom Names**: Use descriptive names like "Work Laptop", "Home PC", "iPad" to easily identify devices
+- **Profile Numbers**: Profiles are numbered 0-4 (displayed as 1-5 in the UI)
+- **Persistence**: Custom names are saved even after power cycles
+- **Active Profile**: The active profile is highlighted with a ⭐ star
+- **Connected Status**: Connected profiles show a 🔗 link icon
 
 ## Development Guide
 
 ### Setup
 
-There are two west workspace layout options.
-
-#### Option1: Download dependencies in parent directory
-
-This option is west's standard way. Choose this option if you want to re-use dependent projects in other zephyr module development.
+This module uses the standard ZMK workspace layout:
 
 ```bash
-mkdir west-workspace
-cd west-workspace # this directory becomes west workspace root (topdir)
-git clone <this repository>
-# rm -r .west # if exists to reset workspace
-west init -l . --mf tests/west-test.yml
-west update --narrow
-west zephyr-export
-```
-
-The directory structure becomes like below:
-
-```
-west-workspace
-  - .west/config
-  - build : build output directory
-  - <this repository>
-  # other dependencies
-  - zmk
-  - zephyr
-  - ...
-  # You can develop other zephyr modules in this workspace
-  - your-other-repo
-```
-
-You can switch between modules by removing `west-workspace/.west` and re-executing `west init ...`.
-
-#### Option2: Download dependencies in ./dependencies (Enabled in dev-container)
-
-Choose this option if you want to download dependencies under this directory (like node_modules in npm). This option is useful for specifying cache target in CI. The layout is relatively easy to recognize if you want to isolate dependencies.
-
-```bash
-git clone <this repository>
-cd <cloned directory>
+git clone https://github.com/cormoran/zmk-module-ble-management
+cd zmk-module-ble-management
 west init -l west --mf west-test-standalone.yml
-# If you use dev container, start from below commands. Above commands are executed
-# automatically.
 west update --narrow
 west zephyr-export
 ```
 
-The directory structure becomes like below:
+### Testing
 
-```
-<this repository>
-  - .west/config
-  - build : build output directory
-  - dependencies
-    - zmk
-    - zephyr
-    - ...
-```
-
-### Dev container
-
-Dev container is configured for setup option2. The container creates below volumes to re-use resources among containers.
-
-- zmk-dependencies: dependencies dir for setup option2
-- zmk-build: build output directory
-- zmk-root-user: /root, the same to ZMK's official dev container
-
-### Web UI
-
-Please refer [./web/README.md](./web/README.md).
-
-## Test
-
-**ZMK firmware test**
-
-`./tests` directory contains test config for posix to confirm module functionality and config for xiao board to confirm build works.
-
-Tests can be executed by below command:
+**Firmware Tests:**
 
 ```bash
-# Run all test case and verify results
+# Run all firmware tests
 python -m unittest
+
+# Run specific test
+python -m unittest test.WestCommandsTests.test_zmk_test
 ```
 
-If you want to execute west command manually, run below. (for zmk-build, the result is not verified.)
-
-```
-# Build test firmware for xiao
-# `-m tests/zmk-config .` means tests/zmk-config and this repo are added as additional zephyr module
-west zmk-build tests/zmk-config/config -m tests/zmk-config .
-
-# Run zmk test cases
-# -m . is required to add this module to build
-west zmk-test tests -m .
-```
-
-**Web UI test**
-
-The `./web` directory includes Jest tests. See [./web/README.md](./web/README.md#testing) for more details.
+**Web UI Tests:**
 
 ```bash
 cd web
+npm install
 npm test
+npm run lint
 ```
 
-## Publishing Web UI
+### Web UI Development
 
-### GitHub Pages (Production)
+```bash
+cd web
+npm install
+npm run dev  # Start development server at http://localhost:5173
+```
 
-Github actions are pre-configured to publish web UI to github pages.
+The web UI uses:
+- React + TypeScript
+- Vite for building
+- [@cormoran/zmk-studio-react-hook](https://github.com/cormoran/react-zmk-studio) for ZMK communication
+- Protocol Buffers for RPC messages
 
-1. Visit Settings>Pages
-1. Set source as "Github Actions"
-1. Visit Actions>"Test and Build Web UI"
-1. Click "Run workflow"
+## Configuration Options
 
-Then, the Web UI will be available in
-`https://<your github account>.github.io/<repository name>/` like https://cormoran.github.io/zmk-module-template-with-custom-studio-rpc.
+| Option | Description | Default |
+|--------|-------------|---------|
+| `CONFIG_ZMK_BLE_MANAGEMENT` | Enable BLE management feature | `n` |
+| `CONFIG_ZMK_BLE_MANAGEMENT_STUDIO_RPC` | Enable Studio RPC interface | `n` |
 
-### Cloudflare Workers (Pull Request Preview)
+## Architecture
 
-For previewing web UI changes in pull requests:
+### Firmware Components
 
-1. Create a Cloudflare Workers project and configure secrets:
+- **`src/studio/ble_management_handler.c`**: Main RPC handler
+  - Manages BLE profiles using ZMK APIs
+  - Stores custom names using Zephyr settings
+  - Handles split keyboard operations
 
-   - `CLOUDFLARE_API_TOKEN`: API token with Cloudflare Pages edit permission
-   - `CLOUDFLARE_ACCOUNT_ID`: Your Cloudflare account ID
-   - (Optional) `CLOUDFLARE_PROJECT_NAME`: Project name (defaults to `zmk-module-web-ui`)
-   - Enable "Preview URLs" feature in cloudflare the project
+- **`proto/zmk/ble_management/ble_management.proto`**: Protocol definition
+  - Defines RPC messages for profile management
+  - Split keyboard information
 
-2. Optionally set up an `approval-required` environment in github repository settings requiring approval from repository owners
+### Web UI Components
 
-3. Create a pull request with web UI changes - the preview deployment will trigger automatically and wait for approval
+- **`ProfileManager`**: Displays and manages BLE profiles
+- **`SplitManager`**: Manages split keyboard connections
 
-## Sync changes in template
+### Data Flow
 
-By running `Actions > Sync Changes in Template > Run workflow`, pull request is created to your repository to reflect changes in template repository.
+```
+Web UI (React) 
+  ↕ Serial Connection
+ZMK Studio RPC Protocol
+  ↕ Custom Subsystem (zmk__ble_management)
+BLE Management Handler
+  ↕ ZMK BLE APIs + Zephyr Settings
+Keyboard Firmware
+```
 
-If the template contains changes in `.github/workflows/*`, registering your github personal access token as `GH_TOKEN` to repository secret is required.
-The fine-grained token requires write to contents, pull-requests and workflows.
-Please see detail in [actions-template-sync](https://github.com/AndreasAugustin/actions-template-sync).
+## Troubleshooting
 
-## More Info
+### Web UI doesn't connect
 
-For more info on modules, you can read through through the
-[Zephyr modules page](https://docs.zephyrproject.org/3.5.0/develop/modules.html)
-and [ZMK's page on using modules](https://zmk.dev/docs/features/modules).
-[Zephyr's west manifest page](https://docs.zephyrproject.org/3.5.0/develop/west/manifest.html#west-manifests)
-may also be of use.
+- Ensure CONFIG_ZMK_STUDIO=y is set
+- Make sure you're using a Serial/USB connection
+- Try refreshing the page and reconnecting
+
+### Custom names don't save
+
+- Check that CONFIG_SETTINGS=y is enabled in your build
+- Verify flash storage is available on your board
+
+### Split keyboard issues
+
+- Use the "Reset Split Connection" button to clear bonds
+- Re-pair the keyboard halves after reset
+
+## Contributing
+
+Contributions are welcome! Please:
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes with tests
+4. Run `python -m unittest` and `cd web && npm test`
+5. Submit a pull request
+
+## License
+
+MIT License - see [LICENSE](LICENSE) file for details
+
+## Credits
+
+- Built on [ZMK Firmware](https://zmk.dev/)
+- Uses [react-zmk-studio](https://github.com/cormoran/react-zmk-studio) by @cormoran
+- Created from [zmk-module-template-with-custom-studio-rpc](https://github.com/cormoran/zmk-module-template-with-custom-studio-rpc)
+
+## Support
+
+- [GitHub Issues](https://github.com/cormoran/zmk-module-ble-management/issues)
+- [ZMK Discord](https://zmk.dev/community/discord/invite)
