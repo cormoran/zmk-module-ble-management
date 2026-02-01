@@ -1,10 +1,10 @@
-config ZMK_TEMPLATE_FEATURE
-    bool "Enable template feature"
+config ZMK_BLE_MANAGEMENT
+    bool "Enable BLE management feature"
 
-if ZMK_TEMPLATE_FEATURE
+if ZMK_BLE_MANAGEMENT
 
-config ZMK_TEMPLATE_FEATURE_STUDIO_RPC
-    bool "Enable template feature custom Studio RPC"
+config ZMK_BLE_MANAGEMENT_STUDIO_RPC
+    bool "Enable BLE management custom Studio RPC"
     depends on ZMK_STUDIO
 
 endif
