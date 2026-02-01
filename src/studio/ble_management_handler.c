@@ -21,9 +21,6 @@
 #include <zmk/studio/custom.h>
 
 #if IS_ENABLED(CONFIG_ZMK_SPLIT_BLE)
-#if IS_ENABLED(CONFIG_ZMK_SPLIT_ROLE_CENTRAL)
-#include <zmk/split/bluetooth/central.h>
-#endif
 #if IS_ENABLED(CONFIG_ZMK_SPLIT_ROLE_PERIPHERAL)
 #include <zmk/split/bluetooth/peripheral.h>
 #endif
