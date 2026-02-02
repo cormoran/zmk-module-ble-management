@@ -543,7 +543,7 @@ static int handle_set_output_priority_request(
             return 0;
     }
 
-    int rc         = zmk_endpoints_select_transport(transport);
+    int rc = zmk_endpoints_select_transport(transport);
     result.success = (rc == 0);
 
     resp->which_response_type =
