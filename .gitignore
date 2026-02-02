@@ -2,3 +2,4 @@ dependencies/
 .west
 __pycache__
 build
+_codeql_detected_source_root
