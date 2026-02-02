@@ -8,6 +8,7 @@
  * - Switch active profiles
  * - Unpair profiles
  * - Manage split keyboard connections
+ * - Set and get output priority (USB or BLE)
  */
 
 #include <pb_decode.h>
@@ -18,6 +19,7 @@
 #include <zephyr/settings/settings.h>
 #include <zmk/ble.h>
 #include <zmk/ble_management/ble_management.pb.h>
+#include <zmk/endpoints.h>
 #include <zmk/studio/custom.h>
 
 #if IS_ENABLED(CONFIG_ZMK_SPLIT_BLE)
@@ -83,6 +85,12 @@ static int handle_get_split_info_request(
     zmk_ble_management_Response *resp);
 static int handle_forget_split_bond_request(
     const zmk_ble_management_ForgetSplitBondRequest *req,
+    zmk_ble_management_Response *resp);
+static int handle_set_output_priority_request(
+    const zmk_ble_management_SetOutputPriorityRequest *req,
+    zmk_ble_management_Response *resp);
+static int handle_get_output_priority_request(
+    const zmk_ble_management_GetOutputPriorityRequest *req,
     zmk_ble_management_Response *resp);
 
 /**
@@ -257,6 +265,14 @@ static bool ble_management_rpc_handle_request(
         case zmk_ble_management_Request_forget_split_bond_tag:
             rc = handle_forget_split_bond_request(
                 &req.request_type.forget_split_bond, resp);
+            break;
+        case zmk_ble_management_Request_set_output_priority_tag:
+            rc = handle_set_output_priority_request(
+                &req.request_type.set_output_priority, resp);
+            break;
+        case zmk_ble_management_Request_get_output_priority_tag:
+            rc = handle_get_output_priority_request(
+                &req.request_type.get_output_priority, resp);
             break;
         default:
             LOG_WRN("Unsupported request type: %d", req.which_request_type);
@@ -495,6 +511,81 @@ static int handle_forget_split_bond_request(
     resp->which_response_type =
         zmk_ble_management_Response_forget_split_bond_tag;
     resp->response_type.forget_split_bond = result;
+    return 0;
+}
+
+/**
+ * Handle SetOutputPriorityRequest
+ */
+static int handle_set_output_priority_request(
+    const zmk_ble_management_SetOutputPriorityRequest *req,
+    zmk_ble_management_Response *resp) {
+    LOG_DBG("SetOutputPriorityRequest: priority=%d", req->priority);
+
+    zmk_ble_management_SetOutputPriorityResponse result =
+        zmk_ble_management_SetOutputPriorityResponse_init_zero;
+
+    // Convert protobuf enum to ZMK transport enum
+    enum zmk_transport transport;
+    switch (req->priority) {
+        case zmk_ble_management_OutputPriority_OUTPUT_PRIORITY_USB:
+            transport = ZMK_TRANSPORT_USB;
+            break;
+        case zmk_ble_management_OutputPriority_OUTPUT_PRIORITY_BLE:
+            transport = ZMK_TRANSPORT_BLE;
+            break;
+        default:
+            LOG_WRN("Invalid output priority: %d", req->priority);
+            result.success = false;
+            resp->which_response_type =
+                zmk_ble_management_Response_set_output_priority_tag;
+            resp->response_type.set_output_priority = result;
+            return 0;
+    }
+
+    int rc         = zmk_endpoints_select_transport(transport);
+    result.success = (rc == 0);
+
+    resp->which_response_type =
+        zmk_ble_management_Response_set_output_priority_tag;
+    resp->response_type.set_output_priority = result;
+    return 0;
+}
+
+/**
+ * Handle GetOutputPriorityRequest
+ */
+static int handle_get_output_priority_request(
+    const zmk_ble_management_GetOutputPriorityRequest *req,
+    zmk_ble_management_Response *resp) {
+    LOG_DBG("GetOutputPriorityRequest");
+
+    zmk_ble_management_GetOutputPriorityResponse result =
+        zmk_ble_management_GetOutputPriorityResponse_init_zero;
+
+    // Get the currently selected endpoint
+    struct zmk_endpoint_instance current = zmk_endpoints_selected();
+
+    // Convert ZMK transport enum to protobuf enum
+    switch (current.transport) {
+        case ZMK_TRANSPORT_USB:
+            result.priority =
+                zmk_ble_management_OutputPriority_OUTPUT_PRIORITY_USB;
+            break;
+        case ZMK_TRANSPORT_BLE:
+            result.priority =
+                zmk_ble_management_OutputPriority_OUTPUT_PRIORITY_BLE;
+            break;
+        default:
+            LOG_WRN("Unknown transport type: %d", current.transport);
+            result.priority =
+                zmk_ble_management_OutputPriority_OUTPUT_PRIORITY_BLE;
+            break;
+    }
+
+    resp->which_response_type =
+        zmk_ble_management_Response_get_output_priority_tag;
+    resp->response_type.get_output_priority = result;
     return 0;
 }
 
