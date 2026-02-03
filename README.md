@@ -34,7 +34,7 @@ manifest:
     # Required: Custom ZMK fork with studio protocol support
     - name: zmk
       remote: cormoran
-      revision: v0.3+custom-studio-protocol
+      revision: v0.3-branch+custom-studio-protocol+ble
       import:
         file: app/west.yml
 ```
@@ -127,6 +127,7 @@ npm run dev  # Start development server at http://localhost:5173
 ```
 
 The web UI uses:
+
 - React + TypeScript
 - Vite for building
 - [@cormoran/zmk-studio-react-hook](https://github.com/cormoran/react-zmk-studio) for ZMK communication
@@ -134,10 +135,10 @@ The web UI uses:
 
 ## Configuration Options
 
-| Option | Description | Default |
-|--------|-------------|---------|
-| `CONFIG_ZMK_BLE_MANAGEMENT` | Enable BLE management feature | `n` |
-| `CONFIG_ZMK_BLE_MANAGEMENT_STUDIO_RPC` | Enable Studio RPC interface | `n` |
+| Option                                 | Description                   | Default |
+| -------------------------------------- | ----------------------------- | ------- |
+| `CONFIG_ZMK_BLE_MANAGEMENT`            | Enable BLE management feature | `n`     |
+| `CONFIG_ZMK_BLE_MANAGEMENT_STUDIO_RPC` | Enable Studio RPC interface   | `n`     |
 
 ## Architecture
 
@@ -160,7 +161,7 @@ The web UI uses:
 ### Data Flow
 
 ```
-Web UI (React) 
+Web UI (React)
   ↕ Serial Connection
 ZMK Studio RPC Protocol
   ↕ Custom Subsystem (zmk__ble_management)

@@ -14,6 +14,7 @@ import { connect as serial_connect } from "@zmkfirmware/zmk-studio-ts-client/tra
 import { ZMKConnection } from "@cormoran/zmk-studio-react-hook";
 import { ProfileManager } from "./components/ProfileManager";
 import { SplitManager } from "./components/SplitManager";
+import { OutputPriorityManager } from "./components/OutputPriorityManager";
 
 export const SUBSYSTEM_IDENTIFIER = "zmk__ble_management";
 
@@ -58,6 +59,7 @@ function App() {
               </button>
             </section>
 
+            <OutputPriorityManager />
             <ProfileManager />
             <SplitManager />
           </>
