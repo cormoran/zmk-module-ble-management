@@ -543,7 +543,7 @@ static int handle_set_output_priority_request(
             return 0;
     }
 
-    int rc = zmk_endpoints_select_transport(transport);
+    int rc         = zmk_endpoints_select_transport(transport);
     result.success = (rc == 0);
 
     resp->which_response_type =
@@ -564,10 +564,10 @@ static int handle_get_output_priority_request(
         zmk_ble_management_GetOutputPriorityResponse_init_zero;
 
     // Get the currently selected endpoint
-    struct zmk_endpoint_instance current = zmk_endpoints_selected();
+    enum zmk_transport current = zmk_endpoints_get_preferred_transport();
 
     // Convert ZMK transport enum to protobuf enum
-    switch (current.transport) {
+    switch (current) {
         case ZMK_TRANSPORT_USB:
             result.priority =
                 zmk_ble_management_OutputPriority_OUTPUT_PRIORITY_USB;
@@ -577,7 +577,7 @@ static int handle_get_output_priority_request(
                 zmk_ble_management_OutputPriority_OUTPUT_PRIORITY_BLE;
             break;
         default:
-            LOG_WRN("Unknown transport type: %d", current.transport);
+            LOG_WRN("Unknown transport type: %d", current);
             result.priority =
                 zmk_ble_management_OutputPriority_OUTPUT_PRIORITY_BLE;
             break;
