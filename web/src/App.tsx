@@ -16,7 +16,7 @@ import { ProfileManager } from "./components/ProfileManager";
 import { SplitManager } from "./components/SplitManager";
 import { OutputPriorityManager } from "./components/OutputPriorityManager";
 
-export const SUBSYSTEM_IDENTIFIER = "zmk__ble_management";
+export const SUBSYSTEM_IDENTIFIER = "cormoran_ble";
 
 function App() {
   return (

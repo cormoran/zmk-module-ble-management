@@ -54,17 +54,18 @@ static struct profile_name_entry
  * Metadata for the custom subsystem.
  */
 static struct zmk_rpc_custom_subsystem_meta ble_management_meta = {
-    ZMK_RPC_CUSTOM_SUBSYSTEM_UI_URLS("http://localhost:5173"),
+    ZMK_RPC_CUSTOM_SUBSYSTEM_UI_URLS(
+        "https://cormoran.github.io/zmk-module-ble-management/"),
     .security = ZMK_STUDIO_RPC_HANDLER_UNSECURED,
 };
 
 /**
  * Register the custom RPC subsystem.
  */
-ZMK_RPC_CUSTOM_SUBSYSTEM(zmk__ble_management, &ble_management_meta,
+ZMK_RPC_CUSTOM_SUBSYSTEM(cormoran_ble, &ble_management_meta,
                          ble_management_rpc_handle_request);
 
-ZMK_RPC_CUSTOM_SUBSYSTEM_RESPONSE_BUFFER(zmk__ble_management,
+ZMK_RPC_CUSTOM_SUBSYSTEM_RESPONSE_BUFFER(cormoran_ble,
                                          zmk_ble_management_Response);
 
 // Forward declarations
@@ -221,7 +222,7 @@ SETTINGS_STATIC_HANDLER_DEFINE(ble_mgmt, SETTINGS_NAME_PREFIX, NULL,
 static bool ble_management_rpc_handle_request(
     const zmk_custom_CallRequest *raw_request, pb_callback_t *encode_response) {
     zmk_ble_management_Response *resp =
-        ZMK_RPC_CUSTOM_SUBSYSTEM_RESPONSE_BUFFER_ALLOCATE(zmk__ble_management,
+        ZMK_RPC_CUSTOM_SUBSYSTEM_RESPONSE_BUFFER_ALLOCATE(cormoran_ble,
                                                           encode_response);
 
     zmk_ble_management_Request req = zmk_ble_management_Request_init_zero;
