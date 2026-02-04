@@ -164,7 +164,7 @@ The web UI uses:
 Web UI (React)
   ↕ Serial Connection
 ZMK Studio RPC Protocol
-  ↕ Custom Subsystem (zmk__ble_management)
+  ↕ Custom Subsystem (cormoran_ble)
 BLE Management Handler
   ↕ ZMK BLE APIs + Zephyr Settings
 Keyboard Firmware
