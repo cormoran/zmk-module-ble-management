@@ -4,16 +4,17 @@ This ZMK module provides a web-based user interface for managing Bluetooth Low E
 
 ## Features
 
-- **📱 View BLE Profiles**: See all paired devices with connection status
-- **✏️ Custom Names**: Assign memorable names to your paired devices (saved persistently)
-- **🔄 Quick Switching**: Easily switch between paired devices
-- **🗑️ Unpair Devices**: Remove unwanted pairings
-- **⌨️ Split Keyboard Support**: Manage connections between split keyboard halves
-- **💾 Persistent Storage**: Custom device names are saved and tied to BLE addresses
+- **View BLE Profiles**: See all paired devices with connection status
+- **Custom Names**: Assign memorable names to your paired devices (saved persistently)
+- **Quick Switching**: Easily switch between paired devices
+- **Unpair Devices**: Remove unwanted pairings
+- **Persistent Storage**: Custom device names are saved and tied to BLE addresses
 
 ## Screenshots
 
-[Screenshots will be added here]
+| Output Priority Toggle         | Naming, un-pairing and switching profile |
+| ------------------------------ | ---------------------------------------- |
+| ![](./img/output_priority.png) | ![](./img/profile.png)                   |
 
 ## Setup
 
@@ -57,31 +58,6 @@ CONFIG_ZMK_BLE_MANAGEMENT_STUDIO_RPC=y
 2. Visit the web UI at: `https://cormoran.github.io/zmk-module-ble-management/`
 3. Connect your keyboard via Serial (USB)
 4. Manage your BLE profiles!
-
-## Usage Guide
-
-### Managing BLE Profiles
-
-1. **View Profiles**: After connecting, you'll see all your BLE profile slots (typically 5)
-2. **Edit Names**: Click the pencil icon (✏️) next to any profile to give it a custom name
-3. **Switch Profiles**: Click "Switch to this profile" to change your active connection
-4. **Unpair**: Click the "🗑️ Unpair" button to remove a pairing
-
-### Split Keyboard Management
-
-If you have a split keyboard:
-
-1. The UI will automatically detect split keyboard configuration
-2. View the connection status between halves
-3. Reset split connections if experiencing pairing issues
-
-### Tips
-
-- **Custom Names**: Use descriptive names like "Work Laptop", "Home PC", "iPad" to easily identify devices
-- **Profile Numbers**: Profiles are numbered 0-4 (displayed as 1-5 in the UI)
-- **Persistence**: Custom names are saved even after power cycles
-- **Active Profile**: The active profile is highlighted with a ⭐ star
-- **Connected Status**: Connected profiles show a 🔗 link icon
 
 ## Development Guide
 
