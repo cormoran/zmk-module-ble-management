@@ -31,9 +31,6 @@
 #include <zephyr/logging/log.h>
 LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 
-// Settings namespace for storing profile names
-#define SETTINGS_NAME_PREFIX "ble_mgmt/names/"
-
 // Structure to store profile name tied to BLE address
 struct profile_name_entry {
 #if IS_ENABLED(CONFIG_ZMK_BLE)
@@ -147,10 +144,9 @@ static int save_profile_name(const bt_addr_le_t *addr, const char *name) {
 
     // Save to settings
     char setting_name[64];
-    char addr_str[BT_ADDR_LE_STR_LEN];
-    bt_addr_le_to_str(addr, addr_str, sizeof(addr_str));
-    snprintf(setting_name, sizeof(setting_name), SETTINGS_NAME_PREFIX "%s",
-             addr_str);
+    char addr_str[BT_ADDR_STR_LEN];
+    bt_addr_to_str(&addr->a, addr_str, sizeof(addr_str));
+    snprintf(setting_name, sizeof(setting_name), "ble_mgmt/name/%s", addr_str);
 
     return settings_save_one(setting_name, name, strlen(name) + 1);
 #else
@@ -167,15 +163,15 @@ static int profile_names_settings_set(const char *name, size_t len,
     const char *next;
     int rc;
 
-    if (settings_name_steq(name, SETTINGS_NAME_PREFIX, &next) && next) {
-        char addr_str[BT_ADDR_LE_STR_LEN];
+    if (settings_name_steq(name, "name", &next) && next) {
+        char addr_str[BT_ADDR_STR_LEN];
         strncpy(addr_str, next, sizeof(addr_str) - 1);
         addr_str[sizeof(addr_str) - 1] = '\0';
 
         bt_addr_le_t addr;
         // Parse address (format: "XX:XX:XX:XX:XX:XX (type)")
-        if (bt_addr_le_from_str(addr_str, "random", &addr) != 0 &&
-            bt_addr_le_from_str(addr_str, "public", &addr) != 0) {
+        if (bt_addr_le_from_str(addr_str, "public", &addr) != 0 &&
+            bt_addr_le_from_str(addr_str, "random", &addr) != 0) {
             LOG_WRN("Failed to parse address: %s", addr_str);
             return 0;
         }
@@ -213,7 +209,7 @@ static int profile_names_settings_set(const char *name, size_t len,
     return 0;
 }
 
-SETTINGS_STATIC_HANDLER_DEFINE(ble_mgmt, SETTINGS_NAME_PREFIX, NULL,
+SETTINGS_STATIC_HANDLER_DEFINE(ble_mgmt, "ble_mgmt", NULL,
                                profile_names_settings_set, NULL, NULL);
 
 /**
