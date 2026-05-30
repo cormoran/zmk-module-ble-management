@@ -16,9 +16,10 @@
 #include <zephyr/bluetooth/addr.h>
 #include <zephyr/bluetooth/bluetooth.h>
 #include <zephyr/init.h>
-#include <zephyr/settings/settings.h>
+#include <zephyr/sys/iterable_sections.h>
 #include <zmk/ble.h>
 #include <zmk/ble_management/ble_management.pb.h>
+#include <zmk/custom_settings.h>
 #include <zmk/endpoints.h>
 #include <zmk/studio/custom.h>
 
@@ -39,12 +40,48 @@ struct profile_name_entry {
     char name[32];
 };
 
-// Profile names cache (in memory)
 #if IS_ENABLED(CONFIG_ZMK_BLE)
-static struct profile_name_entry profile_names[ZMK_BLE_PROFILE_COUNT];
-#else
-static struct profile_name_entry
-    profile_names[1];  // Dummy array when BLE is disabled
+BUILD_ASSERT(sizeof(struct profile_name_entry) <= CONFIG_ZMK_CUSTOM_SETTINGS_VALUE_MAX_SIZE,
+             "profile_name_entry too large for configured custom settings value size");
+
+// Register one BYTES custom setting per profile name slot (slots 0-7).
+// ZMK limits BLE profiles to 8 (CONFIG_ZMK_BLE_PROFILES_COUNT range 1 8), so 8
+// slots cover all supported configurations. ZMK_BLE_PROFILE_COUNT determines
+// how many slots are accessed at runtime.
+#define BLE_MGMT_PROFILE_NAME_SETTING(_sym, _idx)                                           \
+    static const struct zmk_custom_setting_constraint _sym##_constraints[] = {              \
+        {.type = ZMK_CUSTOM_SETTING_CONSTRAINT_NONE}};                                      \
+    STRUCT_SECTION_ITERABLE(zmk_custom_setting, _sym) = {                                   \
+        .custom_subsystem_id = "cormoran_ble",                                              \
+        .key = "pname/" ZMK_CUSTOM_SETTINGS_STRINGIFY(_idx),                                \
+        .array_index = ZMK_CUSTOM_SETTING_ARRAY_NONE,                                       \
+        .value_type = ZMK_CUSTOM_SETTING_VALUE_TYPE_BYTES,                                  \
+        .confidentiality = ZMK_CUSTOM_SETTING_CONFIDENTIALITY_DEVICE_PRIVATE,               \
+        .read_permission = ZMK_CUSTOM_SETTING_PERMISSION_UNSECURE,                          \
+        .write_permission = ZMK_CUSTOM_SETTING_PERMISSION_UNSECURE,                         \
+        .constraints = _sym##_constraints,                                                  \
+        .constraints_count = ARRAY_SIZE(_sym##_constraints),                                \
+        .default_value = {.type = ZMK_CUSTOM_SETTING_VALUE_TYPE_BYTES,                      \
+                          .size = sizeof(struct profile_name_entry),                        \
+                          .bytes_value = {0}},                                              \
+    }
+
+BLE_MGMT_PROFILE_NAME_SETTING(ble_mgmt_pname_0, 0);
+BLE_MGMT_PROFILE_NAME_SETTING(ble_mgmt_pname_1, 1);
+BLE_MGMT_PROFILE_NAME_SETTING(ble_mgmt_pname_2, 2);
+BLE_MGMT_PROFILE_NAME_SETTING(ble_mgmt_pname_3, 3);
+BLE_MGMT_PROFILE_NAME_SETTING(ble_mgmt_pname_4, 4);
+BLE_MGMT_PROFILE_NAME_SETTING(ble_mgmt_pname_5, 5);
+BLE_MGMT_PROFILE_NAME_SETTING(ble_mgmt_pname_6, 6);
+BLE_MGMT_PROFILE_NAME_SETTING(ble_mgmt_pname_7, 7);
+
+static const struct zmk_custom_setting *const profile_name_settings[] = {
+    &ble_mgmt_pname_0, &ble_mgmt_pname_1, &ble_mgmt_pname_2, &ble_mgmt_pname_3,
+    &ble_mgmt_pname_4, &ble_mgmt_pname_5, &ble_mgmt_pname_6, &ble_mgmt_pname_7,
+};
+
+BUILD_ASSERT(ZMK_BLE_PROFILE_COUNT <= (int)ARRAY_SIZE(profile_name_settings),
+             "ZMK_BLE_PROFILE_COUNT exceeds the 8-slot maximum supported by ble_management");
 #endif
 
 /**
@@ -92,25 +129,42 @@ static int handle_get_output_priority_request(
     zmk_ble_management_Response *resp);
 
 /**
- * Get profile name from cache based on BLE address
+ * Get profile name from custom settings based on BLE address.
+ * Copies the name into out_name (caller-provided buffer).
  */
-static const char *get_profile_name(const bt_addr_le_t *addr) {
+static void get_profile_name(const bt_addr_le_t *addr, char *out_name, size_t name_size) {
+    if (!out_name || name_size == 0) {
+        return;
+    }
+    out_name[0] = '\0';
 #if IS_ENABLED(CONFIG_ZMK_BLE)
     if (!addr) {
-        return "";
+        return;
     }
 
     for (int i = 0; i < ZMK_BLE_PROFILE_COUNT; i++) {
-        if (bt_addr_le_eq(&profile_names[i].addr, addr)) {
-            return profile_names[i].name;
+        struct zmk_custom_setting_value val;
+        if (zmk_custom_setting_read(profile_name_settings[i], &val) != 0) {
+            continue;
+        }
+        if (val.size < sizeof(struct profile_name_entry)) {
+            continue;
+        }
+
+        struct profile_name_entry entry;
+        memcpy(&entry, val.bytes_value, sizeof(entry));
+        if (bt_addr_le_eq(&entry.addr, addr)) {
+            strncpy(out_name, entry.name, name_size - 1);
+            out_name[name_size - 1] = '\0';
+            return;
         }
     }
 #endif
-    return "";
 }
 
 /**
- * Save profile name to settings and cache
+ * Save profile name to custom settings indexed by BLE address.
+ * Finds the slot already holding addr, or the first empty slot.
  */
 static int save_profile_name(const bt_addr_le_t *addr, const char *name) {
 #if IS_ENABLED(CONFIG_ZMK_BLE)
@@ -118,99 +172,54 @@ static int save_profile_name(const bt_addr_le_t *addr, const char *name) {
         return -EINVAL;
     }
 
-    // Find existing entry or empty slot
-    int slot = -1;
+    int empty_slot = -1;
     for (int i = 0; i < ZMK_BLE_PROFILE_COUNT; i++) {
-        if (bt_addr_le_eq(&profile_names[i].addr, addr)) {
-            slot = i;
-            break;
+        struct zmk_custom_setting_value val;
+        struct profile_name_entry entry = {0};
+        if (zmk_custom_setting_read(profile_name_settings[i], &val) == 0 &&
+            val.size >= sizeof(entry)) {
+            memcpy(&entry, val.bytes_value, sizeof(entry));
         }
-        if (slot == -1 &&
-            bt_addr_le_eq(&profile_names[i].addr, BT_ADDR_LE_NONE)) {
-            slot = i;
+
+        if (bt_addr_le_eq(&entry.addr, addr)) {
+            strncpy(entry.name, name, sizeof(entry.name) - 1);
+            entry.name[sizeof(entry.name) - 1] = '\0';
+
+            struct zmk_custom_setting_value new_val = {
+                .type = ZMK_CUSTOM_SETTING_VALUE_TYPE_BYTES,
+                .size = sizeof(entry),
+            };
+            memcpy(new_val.bytes_value, &entry, sizeof(entry));
+            return zmk_custom_setting_write(profile_name_settings[i], &new_val,
+                                            ZMK_CUSTOM_SETTING_WRITE_MODE_PERSIST);
+        }
+
+        if (empty_slot == -1 && bt_addr_le_eq(&entry.addr, BT_ADDR_LE_NONE)) {
+            empty_slot = i;
         }
     }
 
-    if (slot == -1) {
+    if (empty_slot == -1) {
         LOG_WRN("No slot available for profile name");
         return -ENOMEM;
     }
 
-    // Update cache
-    bt_addr_le_copy(&profile_names[slot].addr, addr);
-    strncpy(profile_names[slot].name, name,
-            sizeof(profile_names[slot].name) - 1);
-    profile_names[slot].name[sizeof(profile_names[slot].name) - 1] = '\0';
+    struct profile_name_entry new_entry;
+    bt_addr_le_copy(&new_entry.addr, addr);
+    strncpy(new_entry.name, name, sizeof(new_entry.name) - 1);
+    new_entry.name[sizeof(new_entry.name) - 1] = '\0';
 
-    // Save to settings
-    char setting_name[64];
-    char addr_str[BT_ADDR_STR_LEN];
-    bt_addr_to_str(&addr->a, addr_str, sizeof(addr_str));
-    snprintf(setting_name, sizeof(setting_name), "ble_mgmt/name/%s", addr_str);
-
-    return settings_save_one(setting_name, name, strlen(name) + 1);
+    struct zmk_custom_setting_value new_val = {
+        .type = ZMK_CUSTOM_SETTING_VALUE_TYPE_BYTES,
+        .size = sizeof(new_entry),
+    };
+    memcpy(new_val.bytes_value, &new_entry, sizeof(new_entry));
+    return zmk_custom_setting_write(profile_name_settings[empty_slot], &new_val,
+                                    ZMK_CUSTOM_SETTING_WRITE_MODE_PERSIST);
 #else
     return -ENOTSUP;
 #endif
 }
-
-/**
- * Settings callback for loading profile names
- */
-static int profile_names_settings_set(const char *name, size_t len,
-                                      settings_read_cb read_cb, void *cb_arg) {
-#if IS_ENABLED(CONFIG_ZMK_BLE)
-    const char *next;
-    int rc;
-
-    if (settings_name_steq(name, "name", &next) && next) {
-        char addr_str[BT_ADDR_STR_LEN];
-        strncpy(addr_str, next, sizeof(addr_str) - 1);
-        addr_str[sizeof(addr_str) - 1] = '\0';
-
-        bt_addr_le_t addr;
-        // Parse address (format: "XX:XX:XX:XX:XX:XX (type)")
-        if (bt_addr_le_from_str(addr_str, "public", &addr) != 0 &&
-            bt_addr_le_from_str(addr_str, "random", &addr) != 0) {
-            LOG_WRN("Failed to parse address: %s", addr_str);
-            return 0;
-        }
-
-        // Find or allocate slot
-        int slot = -1;
-        for (int i = 0; i < ZMK_BLE_PROFILE_COUNT; i++) {
-            if (bt_addr_le_eq(&profile_names[i].addr, &addr)) {
-                slot = i;
-                break;
-            }
-            if (slot == -1 &&
-                bt_addr_le_eq(&profile_names[i].addr, BT_ADDR_LE_NONE)) {
-                slot = i;
-            }
-        }
-
-        if (slot == -1) {
-            LOG_WRN("No slot for loading profile name");
-            return 0;
-        }
-
-        bt_addr_le_copy(&profile_names[slot].addr, &addr);
-        rc = read_cb(cb_arg, profile_names[slot].name,
-                     sizeof(profile_names[slot].name));
-        if (rc >= 0) {
-            profile_names[slot].name[sizeof(profile_names[slot].name) - 1] =
-                '\0';
-            LOG_DBG("Loaded profile name for %s: %s", addr_str,
-                    profile_names[slot].name);
-        }
-    }
-#endif
-
-    return 0;
-}
-
-SETTINGS_STATIC_HANDLER_DEFINE(ble_mgmt, "ble_mgmt", NULL,
-                               profile_names_settings_set, NULL, NULL);
 
 /**
  * Main request handler for the custom RPC subsystem.
@@ -319,9 +328,10 @@ static int handle_get_profiles_request(
             profile->address[sizeof(profile->address) - 1] = '\0';
 
             // Get custom name
-            const char *name = get_profile_name(addr);
-            if (name && name[0] != '\0') {
-                strncpy(profile->name, name, sizeof(profile->name) - 1);
+            char name_buf[32];
+            get_profile_name(addr, name_buf, sizeof(name_buf));
+            if (name_buf[0] != '\0') {
+                strncpy(profile->name, name_buf, sizeof(profile->name) - 1);
                 profile->name[sizeof(profile->name) - 1] = '\0';
             }
         }
@@ -417,13 +427,18 @@ static int handle_unpair_profile_request(
         LOG_WRN("Invalid profile index: %d", req->index);
         result.success = false;
     } else {
-        // Clear profile name from cache if it exists
+        // Clear profile name from settings if the profile has an address
         bt_addr_le_t *addr = zmk_ble_profile_address(req->index);
         if (addr && !bt_addr_le_eq(addr, BT_ADDR_LE_NONE)) {
             for (int i = 0; i < ZMK_BLE_PROFILE_COUNT; i++) {
-                if (bt_addr_le_eq(&profile_names[i].addr, addr)) {
-                    bt_addr_le_copy(&profile_names[i].addr, BT_ADDR_LE_NONE);
-                    profile_names[i].name[0] = '\0';
+                struct zmk_custom_setting_value val;
+                struct profile_name_entry entry = {0};
+                if (zmk_custom_setting_read(profile_name_settings[i], &val) == 0 &&
+                    val.size >= sizeof(entry)) {
+                    memcpy(&entry, val.bytes_value, sizeof(entry));
+                }
+                if (bt_addr_le_eq(&entry.addr, addr)) {
+                    zmk_custom_setting_reset(profile_name_settings[i]);
                     break;
                 }
             }
@@ -585,21 +600,3 @@ static int handle_get_output_priority_request(
     resp->response_type.get_output_priority = result;
     return 0;
 }
-
-/**
- * Initialize profile names on boot
- */
-static int profile_names_init(void) {
-#if IS_ENABLED(CONFIG_ZMK_BLE)
-    // Initialize all entries to empty
-    for (int i = 0; i < ZMK_BLE_PROFILE_COUNT; i++) {
-        bt_addr_le_copy(&profile_names[i].addr, BT_ADDR_LE_NONE);
-        profile_names[i].name[0] = '\0';
-    }
-#endif
-
-    LOG_DBG("Profile names initialized");
-    return 0;
-}
-
-SYS_INIT(profile_names_init, APPLICATION, CONFIG_APPLICATION_INIT_PRIORITY);
