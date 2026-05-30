@@ -44,10 +44,8 @@ struct profile_name_entry {
 BUILD_ASSERT(sizeof(struct profile_name_entry) <= CONFIG_ZMK_CUSTOM_SETTINGS_VALUE_MAX_SIZE,
              "profile_name_entry too large for configured custom settings value size");
 
-// Register one BYTES custom setting per profile name slot (slots 0-7).
-// ZMK limits BLE profiles to 8 (CONFIG_ZMK_BLE_PROFILES_COUNT range 1 8), so 8
-// slots cover all supported configurations. ZMK_BLE_PROFILE_COUNT determines
-// how many slots are accessed at runtime.
+// Register one BYTES custom setting per BLE profile slot, matching ZMK_BLE_PROFILE_COUNT.
+// Slots beyond the configured count are guarded out at compile time.
 #define BLE_MGMT_PROFILE_NAME_SETTING(_sym, _idx)                                           \
     static const struct zmk_custom_setting_constraint _sym##_constraints[] = {              \
         {.type = ZMK_CUSTOM_SETTING_CONSTRAINT_NONE}};                                      \
@@ -56,7 +54,7 @@ BUILD_ASSERT(sizeof(struct profile_name_entry) <= CONFIG_ZMK_CUSTOM_SETTINGS_VAL
         .key = "pname/" ZMK_CUSTOM_SETTINGS_STRINGIFY(_idx),                                \
         .array_index = ZMK_CUSTOM_SETTING_ARRAY_NONE,                                       \
         .value_type = ZMK_CUSTOM_SETTING_VALUE_TYPE_BYTES,                                  \
-        .confidentiality = ZMK_CUSTOM_SETTING_CONFIDENTIALITY_DEVICE_PRIVATE,               \
+        .confidentiality = ZMK_CUSTOM_SETTING_CONFIDENTIALITY_RPC_PERSONAL,                 \
         .read_permission = ZMK_CUSTOM_SETTING_PERMISSION_UNSECURE,                          \
         .write_permission = ZMK_CUSTOM_SETTING_PERMISSION_UNSECURE,                         \
         .constraints = _sym##_constraints,                                                  \
@@ -66,22 +64,53 @@ BUILD_ASSERT(sizeof(struct profile_name_entry) <= CONFIG_ZMK_CUSTOM_SETTINGS_VAL
                           .bytes_value = {0}},                                              \
     }
 
-BLE_MGMT_PROFILE_NAME_SETTING(ble_mgmt_pname_0, 0);
-BLE_MGMT_PROFILE_NAME_SETTING(ble_mgmt_pname_1, 1);
-BLE_MGMT_PROFILE_NAME_SETTING(ble_mgmt_pname_2, 2);
-BLE_MGMT_PROFILE_NAME_SETTING(ble_mgmt_pname_3, 3);
-BLE_MGMT_PROFILE_NAME_SETTING(ble_mgmt_pname_4, 4);
-BLE_MGMT_PROFILE_NAME_SETTING(ble_mgmt_pname_5, 5);
-BLE_MGMT_PROFILE_NAME_SETTING(ble_mgmt_pname_6, 6);
-BLE_MGMT_PROFILE_NAME_SETTING(ble_mgmt_pname_7, 7);
+BLE_MGMT_PROFILE_NAME_SETTING(ble_pn0, 0);
+#if ZMK_BLE_PROFILE_COUNT > 1
+BLE_MGMT_PROFILE_NAME_SETTING(ble_pn1, 1);
+#endif
+#if ZMK_BLE_PROFILE_COUNT > 2
+BLE_MGMT_PROFILE_NAME_SETTING(ble_pn2, 2);
+#endif
+#if ZMK_BLE_PROFILE_COUNT > 3
+BLE_MGMT_PROFILE_NAME_SETTING(ble_pn3, 3);
+#endif
+#if ZMK_BLE_PROFILE_COUNT > 4
+BLE_MGMT_PROFILE_NAME_SETTING(ble_pn4, 4);
+#endif
+#if ZMK_BLE_PROFILE_COUNT > 5
+BLE_MGMT_PROFILE_NAME_SETTING(ble_pn5, 5);
+#endif
+#if ZMK_BLE_PROFILE_COUNT > 6
+BLE_MGMT_PROFILE_NAME_SETTING(ble_pn6, 6);
+#endif
+#if ZMK_BLE_PROFILE_COUNT > 7
+BLE_MGMT_PROFILE_NAME_SETTING(ble_pn7, 7);
+#endif
 
 static const struct zmk_custom_setting *const profile_name_settings[] = {
-    &ble_mgmt_pname_0, &ble_mgmt_pname_1, &ble_mgmt_pname_2, &ble_mgmt_pname_3,
-    &ble_mgmt_pname_4, &ble_mgmt_pname_5, &ble_mgmt_pname_6, &ble_mgmt_pname_7,
+    &ble_pn0,
+#if ZMK_BLE_PROFILE_COUNT > 1
+    &ble_pn1,
+#endif
+#if ZMK_BLE_PROFILE_COUNT > 2
+    &ble_pn2,
+#endif
+#if ZMK_BLE_PROFILE_COUNT > 3
+    &ble_pn3,
+#endif
+#if ZMK_BLE_PROFILE_COUNT > 4
+    &ble_pn4,
+#endif
+#if ZMK_BLE_PROFILE_COUNT > 5
+    &ble_pn5,
+#endif
+#if ZMK_BLE_PROFILE_COUNT > 6
+    &ble_pn6,
+#endif
+#if ZMK_BLE_PROFILE_COUNT > 7
+    &ble_pn7,
+#endif
 };
-
-BUILD_ASSERT(ZMK_BLE_PROFILE_COUNT <= (int)ARRAY_SIZE(profile_name_settings),
-             "ZMK_BLE_PROFILE_COUNT exceeds the 8-slot maximum supported by ble_management");
 #endif
 
 /**
