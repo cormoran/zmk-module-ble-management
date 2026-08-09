@@ -1,5 +1,6 @@
 config ZMK_BLE_MANAGEMENT
     bool "Enable BLE management feature"
+    select ZMK_CUSTOM_SETTINGS
 
 if ZMK_BLE_MANAGEMENT
 

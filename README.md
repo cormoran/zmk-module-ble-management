@@ -32,6 +32,7 @@ manifest:
     - name: zmk-module-ble-management
       remote: cormoran
       revision: main # or latest commit hash
+      import: true   # pulls in zmk-feature-custom-settings dependency
     # Required: Custom ZMK fork with studio protocol support
     - name: zmk
       remote: cormoran
@@ -50,6 +51,13 @@ CONFIG_ZMK_BLE_MANAGEMENT=y
 # Enable Studio custom RPC features
 CONFIG_ZMK_STUDIO=y
 CONFIG_ZMK_BLE_MANAGEMENT_STUDIO_RPC=y
+
+# Required by zmk-feature-custom-settings when Studio RPC is enabled:
+# buffers must be large enough for custom settings RPC requests/payloads,
+# and the low-priority stack must be increased for settings list notifications.
+CONFIG_ZMK_STUDIO_RPC_RX_BUF_SIZE=128
+CONFIG_ZMK_STUDIO_RPC_CUSTOM_SUBSYSTEM_REQUEST_PAYLOAD_MAX_BYTES=96
+CONFIG_ZMK_LOW_PRIORITY_THREAD_STACK_SIZE=2048
 ```
 
 ### 3. Use the Web UI
@@ -111,10 +119,13 @@ The web UI uses:
 
 ## Configuration Options
 
-| Option                                 | Description                   | Default |
-| -------------------------------------- | ----------------------------- | ------- |
-| `CONFIG_ZMK_BLE_MANAGEMENT`            | Enable BLE management feature | `n`     |
-| `CONFIG_ZMK_BLE_MANAGEMENT_STUDIO_RPC` | Enable Studio RPC interface   | `n`     |
+| Option                                                          | Description                                                              | Default |
+| --------------------------------------------------------------- | ------------------------------------------------------------------------ | ------- |
+| `CONFIG_ZMK_BLE_MANAGEMENT`                                     | Enable BLE management feature                                            | `n`     |
+| `CONFIG_ZMK_BLE_MANAGEMENT_STUDIO_RPC`                          | Enable Studio RPC interface                                              | `n`     |
+| `CONFIG_ZMK_STUDIO_RPC_RX_BUF_SIZE`                             | RPC receive buffer size — increase to 128 when Studio RPC is enabled     | `64`    |
+| `CONFIG_ZMK_STUDIO_RPC_CUSTOM_SUBSYSTEM_REQUEST_PAYLOAD_MAX_BYTES` | Max custom subsystem request payload — increase to 96 with Studio RPC | `64`    |
+| `CONFIG_ZMK_LOW_PRIORITY_THREAD_STACK_SIZE`                     | Low-priority thread stack — increase to 2048 when Studio RPC is enabled  | `1024`  |
 
 ## Architecture
 
@@ -122,7 +133,7 @@ The web UI uses:
 
 - **`src/studio/ble_management_handler.c`**: Main RPC handler
   - Manages BLE profiles using ZMK APIs
-  - Stores custom names using Zephyr settings
+  - Stores custom names using [`zmk-feature-custom-settings`](https://github.com/cormoran/zmk-feature-custom-settings) module
   - Handles split keyboard operations
 
 - **`proto/zmk/ble_management/ble_management.proto`**: Protocol definition
@@ -142,7 +153,7 @@ Web UI (React)
 ZMK Studio RPC Protocol
   ↕ Custom Subsystem (cormoran_ble)
 BLE Management Handler
-  ↕ ZMK BLE APIs + Zephyr Settings
+  ↕ ZMK BLE APIs + zmk-feature-custom-settings
 Keyboard Firmware
 ```
 
@@ -156,8 +167,9 @@ Keyboard Firmware
 
 ### Custom names don't save
 
-- Check that CONFIG_SETTINGS=y is enabled in your build
+- Check that `CONFIG_SETTINGS=y` is enabled in your build
 - Verify flash storage is available on your board
+- Profile names are stored under `custom_settings/cormoran_ble/pname/<N>` in flash
 
 ### Split keyboard issues
 
