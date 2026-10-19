@@ -23,7 +23,10 @@
 #include <zmk/studio/custom.h>
 
 #if IS_ENABLED(CONFIG_ZMK_SPLIT_BLE)
-#if IS_ENABLED(CONFIG_ZMK_SPLIT_ROLE_PERIPHERAL)
+#if IS_ENABLED(CONFIG_ZMK_SPLIT_ROLE_CENTRAL)
+#include <zephyr/sys/iterable_sections.h>
+#include <zmk/split/transport/central.h>
+#elif IS_ENABLED(CONFIG_ZMK_SPLIT_ROLE_PERIPHERAL)
 #include <zmk/split/bluetooth/peripheral.h>
 #endif
 #endif
@@ -458,19 +461,29 @@ static int handle_get_split_info_request(
     zmk_ble_management_GetSplitInfoResponse result =
         zmk_ble_management_GetSplitInfoResponse_init_zero;
     zmk_ble_management_SplitInfo *info = &result.info;
+    // SplitInfo is a submessage: without has_info it is not encoded at all
+    result.has_info = true;
 
 #if IS_ENABLED(CONFIG_ZMK_SPLIT_BLE)
     info->is_split = true;
 #if IS_ENABLED(CONFIG_ZMK_SPLIT_ROLE_CENTRAL)
     info->is_central = true;
-    // For central, check if peripheral is connected
-    // Note: ZMK doesn't expose a direct API for this, so we'll set it to false
-    // for now
+    // For central, the peripheral is connected when a split transport reports
+    // all of its peripherals connected
     info->peripheral_connected = false;
-    info->central_bonded       = false;
+    STRUCT_SECTION_FOREACH(zmk_split_transport_central, t) {
+        if (t->api->get_status &&
+            t->api->get_status().connections ==
+                ZMK_SPLIT_TRANSPORT_CONNECTIONS_STATUS_ALL_CONNECTED) {
+            info->peripheral_connected = true;
+            break;
+        }
+    }
+    info->central_bonded = false;
 #elif IS_ENABLED(CONFIG_ZMK_SPLIT_ROLE_PERIPHERAL)
-    info->is_central           = false;
-    info->peripheral_connected = false;
+    info->is_central = false;
+    // For peripheral, report whether this half is connected to the central
+    info->peripheral_connected = zmk_split_bt_peripheral_is_connected();
     info->central_bonded       = zmk_split_bt_peripheral_is_bonded();
 #endif
 #else
